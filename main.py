@@ -30,7 +30,7 @@ class MinerCore:
         )
         self.blacklist_fns = [self.blacklist_fn]
         self.forward_fns = [self.forward_text_compress]
-        self.my_subnet_uid,_ = self.getminfo(self.wallet.hotkey.ss58_address)
+        self.my_subnet_uid,_ = self.get_miner_info(self.wallet.hotkey.ss58_address)
         if self.mysubnet_uid==-1:
             logger.error(
                 f"\nYour miner: {self.wallet} is not registered to chain connection: {self.subtensor} \nRun 'btcli register' and try again."
@@ -154,7 +154,7 @@ class MinerCore:
         logger.info(f"Context length: {len(synapse.context)}")
         loop = asyncio.get_event_loop()
         compressed_output = await loop.run_in_executor(
-            None,  # None -> dùng default thread pool
+            None,  
             self.compressor.compress_prompt,
             synapse.context,
             0.7,
