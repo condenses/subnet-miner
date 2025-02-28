@@ -1,6 +1,22 @@
 from pydantic_settings import BaseSettings
+from typing import Optional
+from pydantic import BaseModel
+
+class SidecarBittensorConfig(BaseModel):
+    base_url: str = "http://localhost:9100"
+
+class RedisConfig(BaseModel):
+    host: str = "localhost"
+    port: int = 6379
+    db: int = 0
+    username: Optional[str] = None
+    password: Optional[str] = None
+    serving_counter_key_format: str = "serving_counter:{uid}"
+
 
 class Settings(BaseSettings):
+    redis: RedisConfig = RedisConfig()
+    sidecar_bittensor: SidecarBittensorConfig = SidecarBittensorConfig()
     wallet_name: str = "default"
     wallet_hotkey: str = "default"
     wallet_path: str = "~/.bittensor/wallets"
@@ -8,6 +24,7 @@ class Settings(BaseSettings):
     axon_port: int = 8091
     subtensor_network: str = "test"
     min_stake: float = 0.0
+    epoch_length: int = 600
 
 
     class Config:

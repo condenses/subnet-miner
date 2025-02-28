@@ -7,6 +7,9 @@ import traceback
 from llmlingua import PromptCompressor
 import time
 import asyncio
+from sidecar_bittensor.client import AsyncRestfulBittensor
+from typing import Dict
+from redis_manager import ServingCounter
 
 class MinerCore:
     def __init__(self):
@@ -22,22 +25,46 @@ class MinerCore:
                 model_name="microsoft/llmlingua-2-xlm-roberta-large-meetingbank",
                 use_llmlingua2=True,
             )
+        self.restful_bittensor = AsyncRestfulBittensor(
+            CONFIG.sidecar_bittensor.base_url
+        )
         self.blacklist_fns = [self.blacklist_fn]
         self.forward_fns = [self.forward_text_compress]
-        self.subtensor = bt.subtensor(CONFIG.subtensor_network)
-        self.metagraph = self.subtensor.metagraph(CONFIG.netuid)
-        if self.wallet.hotkey.ss58_address not in self.metagraph.hotkeys:
+        self.my_subnet_uid,_ = self.getminfo(self.wallet.hotkey.ss58_address)
+        if self.mysubnet_uid==-1:
             logger.error(
                 f"\nYour miner: {self.wallet} is not registered to chain connection: {self.subtensor} \nRun 'btcli register' and try again."
             )
             exit()
         else:
-            self.my_subnet_uid = self.metagraph.hotkeys.index(
-                self.wallet.hotkey.ss58_address
-            )
             logger.info(f"Running miner on uid: {self.my_subnet_uid}")
 
+    def _initialize_rate_limits(self):
+        r"""
+        Initializes the rate limits for the miners.
+        """
+        self.rate_limits = {
+            uid: ServingCounter(
+                rate_limit=rate_limit,
+                uid=uid,
+                redis_client=self.redis,
+                postfix_key=CONFIG.axon_port,
+            )
+            for uid, rate_limit in self.build_rate_limit(CONFIG.min_stake).items()
+        }
+        for k, v in self.rate_limits.items():
+            v.reset_counter()
+            bt.logging.info(
+                f"Reset rate limit for {k}: {v.get_current_count()}/{v.rate_limit}"
+            )
 
+    def build_rate_limit(self, minstake: int) -> Dict[int, int]:
+        response = self.restful_bittensor.get_rate_limit(minstake)
+        return response
+
+    def get_miner_info(self, ss58_address: str) -> Tuple[int, float]:
+        response = self.restful_bittensor.get_miner_info(ss58_address)
+        return response
 
     def setup_axon(self):
         self.axon = bt.axon(
@@ -69,12 +96,12 @@ class MinerCore:
         while True:
             try:
                 # Periodically update our knowledge of the network graph.
-                if step % 10 == 0:
+                if step % 60 == 0:
                     self.metagraph.sync()
-                    # self._initialize_rate_limits()
+                    self._initialize_rate_limits()
+                    _,incentive = self.get_miner_info(self.wallet.hotkey.ss58_address)
                     log = (
-                        f"Block: {self.metagraph.block.item()} | "
-                        f"Incentive: {self.metagraph.I[self.my_subnet_uid]} | "
+                        f"Incentive: {incentive} | "
                     )
                     logger.info(log)
                 step += 1
@@ -101,16 +128,13 @@ class MinerCore:
             reason (str): The reason for blacklisting the synapse.
         """
         hotkey = synapse.dendrite.hotkey
-        uid = self.metagraph.hotkeys.index(hotkey)
-        stake = self.metagraph.S[uid]
-        if stake < CONFIG.min_stake:
-            return True, "Stake too low."
-        # allowed = self.rate_limits[uid].increment()
-        # logger.info(
-        #     f"Rate limit: {uid} {self.rate_limits[uid].get_current_count()}/{self.rate_limits[uid].rate_limit}"
-        # )
-        # if not allowed:
-        #     return True, "Rate limit exceeded."
+        uid,_= self.get_miner_info(hotkey)
+        allowed = self.rate_limits[uid].increment()
+        logger.info(
+            f"Rate limit: {uid} {self.rate_limits[uid].get_current_count()}/{self.rate_limits[uid].rate_limit}"
+        )
+        if not allowed:
+            return True, "Rate limit exceeded."
         return False, ""
     
     async def forward_text_compress(
@@ -128,9 +152,6 @@ class MinerCore:
             f"Forwarding text compress: {synapse.context[:100]}...{synapse.context[-100:]}"
         )
         logger.info(f"Context length: {len(synapse.context)}")
-        # synapse.compressed_context = self.compressor.compress_prompt(
-        #         synapse.context, rate=0.7, force_tokens=["\n", "?"]
-        #     )["compressed_prompt"]
         loop = asyncio.get_event_loop()
         compressed_output = await loop.run_in_executor(
             None,  # None -> dùng default thread pool
