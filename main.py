@@ -7,13 +7,20 @@ import traceback
 from llmlingua import PromptCompressor
 import time
 import asyncio
-from sidecar_bittensor.client import AsyncRestfulBittensor
+from sidecar_bittensor.client import AsyncRestfulBittensor, RestfulBittensor
 from typing import Dict
 from redis_manager import ServingCounter
+from redis import Redis
 
 class MinerCore:
     def __init__(self):
         logger.info("Initializing MinerCore")
+        self.redis = Redis(
+            host=CONFIG.redis.host,
+            port=CONFIG.redis.port,
+            db=CONFIG.redis.db,
+            decode_responses=True,
+        )
         self.wallet = bt.Wallet(
             path=CONFIG.wallet_path,
             name=CONFIG.wallet_name,
@@ -25,13 +32,15 @@ class MinerCore:
                 model_name="microsoft/llmlingua-2-xlm-roberta-large-meetingbank",
                 use_llmlingua2=True,
             )
-        self.restful_bittensor = AsyncRestfulBittensor(
+        self.restful_bittensor = RestfulBittensor(
             CONFIG.sidecar_bittensor.base_url
         )
+        self.subtensor = bt.subtensor(CONFIG.subtensor_network)
         self.blacklist_fns = [self.blacklist_fn]
         self.forward_fns = [self.forward_text_compress]
-        self.my_subnet_uid,_ = self.get_miner_info(self.wallet.hotkey.ss58_address)
-        if self.mysubnet_uid==-1:
+        self.my_subnet_uid,_ =  self.get_miner_info(self.wallet.hotkey.ss58_address)
+        logger.info(f"Miner uid: {self.my_subnet_uid}")
+        if self.my_subnet_uid==-1:
             logger.error(
                 f"\nYour miner: {self.wallet} is not registered to chain connection: {self.subtensor} \nRun 'btcli register' and try again."
             )
@@ -54,7 +63,7 @@ class MinerCore:
         }
         for k, v in self.rate_limits.items():
             v.reset_counter()
-            bt.logging.info(
+            logger.info(
                 f"Reset rate limit for {k}: {v.get_current_count()}/{v.rate_limit}"
             )
 
@@ -97,7 +106,6 @@ class MinerCore:
             try:
                 # Periodically update our knowledge of the network graph.
                 if step % 60 == 0:
-                    self.metagraph.sync()
                     self._initialize_rate_limits()
                     _,incentive = self.get_miner_info(self.wallet.hotkey.ss58_address)
                     log = (

@@ -1,0 +1,41 @@
+[tool.hatch.build.targets.wheel]
+packages = ["condenses_mining"]
+
+[tool.uv.sources]
+
+sidecar-bittensor = { git = "https://github.com/condenses/sidecar-bittensor.git",branch = "minh-dev" }
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "subnet-mining"
+version = "0.1.0"
+description = "Subnet Miner"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    { name = "Your Name", email = "your.email@example.com" }
+]
+dependencies = [
+    "bittensor==9.0.0",
+    "fastapi",
+    "gunicorn>=23.0.0",
+    "httpx>=0.28.1",
+    "loguru>=0.7.3",
+    "pydantic-settings>=2.7.1",
+    "redis>=5.2.1",
+    "sidecar-bittensor",
+    "textual>=2.1.0",
+    "tiktoken>=0.9.0",
+    "uvicorn>=0.34.0",
+    "llmlingua",
+    "pandas"
+]
+
+[project.scripts]
+condenses-validating = "condenses_validating.main:start_loop"
+update-env = "scripts.update_env:main"
