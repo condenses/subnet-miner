@@ -20,9 +20,9 @@ class Settings(BaseSettings):
     wallet_name: str = "default"
     wallet_hotkey: str = "default"
     wallet_path: str = "~/.bittensor/wallets"
-    netuid: int = 245
+    netuid: int = 47
     axon_port: int = 8091
-    subtensor_network: str = "test"
+    subtensor_network: str = "finney"
     min_stake: float = 10000.0
     epoch_length: int = 600
 
