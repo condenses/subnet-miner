@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     netuid: int = 245
     axon_port: int = 8091
     subtensor_network: str = "test"
-    min_stake: float = 0.0
+    min_stake: float = 10000.0
     epoch_length: int = 600
 
 
