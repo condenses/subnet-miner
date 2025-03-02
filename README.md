@@ -25,5 +25,5 @@ pm2 start python --name "sidecar-bittensor" -- -m uvicorn sidecar_bittensor.serv
 ```
 update-env SIDECAR_BITTENSOR__BASE_URL http://localhost:9000
 update-env AXON_PORT port
-pm2 start main.py --interpreter python3 --name "sn47-miner"
+pm2 start condense_miner/main.py --interpreter python3 --name "sn47-miner"
 ```
