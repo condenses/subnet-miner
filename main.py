@@ -7,7 +7,7 @@ import traceback
 from llmlingua import PromptCompressor
 import time
 import asyncio
-from sidecar_bittensor.client import AsyncRestfulBittensor, RestfulBittensor
+from sidecar_bittensor.client import  RestfulBittensor
 from typing import Dict
 from redis_manager import ServingCounter
 from redis import Redis
