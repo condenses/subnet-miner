@@ -3,7 +3,7 @@ packages = ["condense_miner"]
 
 [tool.uv.sources]
 
-sidecar-bittensor = { git = "https://github.com/condenses/sidecar-bittensor.git",branch = "minh-dev" }
+sidecar-bittensor = { git = "https://github.com/condenses/sidecar-bittensor.git" }
 
 
 [build-system]
